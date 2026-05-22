@@ -23,13 +23,13 @@ jobs:
         run: |
           source $HOME/.local/bin/env
           uv pip install --system --break-system-packages -e ".[dev]"
-      - name: Run ruff (lint + format check)
+      - name: Run ruff
         run: ruff check wavesense tests
-      - name: Run mypy (type check)
+      - name: Run mypy
         run: mypy wavesense tests --ignore-missing-imports
 
   tests:
-    name: Unit Tests
+    name: Unit Tests + Coverage
     runs-on: ubuntu-latest
     strategy:
       matrix: {python: ["3.9", "3.10", "3.11", "3.12"]}
@@ -42,13 +42,17 @@ jobs:
       - name: Install dependencies
         run: |
           source $HOME/.local/bin/env
-          uv pip install --system --break-system-packages -e ".[dev]"
-      - name: Run pytest
-        run: pytest tests/ -v --tb=short --cov=wavesense --cov-report=term-missing
-      - name: Upload coverage
+          uv pip install --system --break-system-packages -e ".[dev]" pytest-cov
+      - name: Run pytest with coverage
+        run: pytest tests/ -v --tb=short --cov=wavesense --cov-report=xml --cov-report=term-missing
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-        if: matrix.python == '3.11'
-        with: {file: ./coverage.xml, fail_ci_if_error: false}
+        if: matrix.python == '3.11' && github.event_name == 'push'
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
 
   security:
     name: Security Scan
@@ -57,29 +61,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "${{ env.PYTHON_VERSION }}"}
-      - name: Install safety
-        run: pip install --user safety
-      - name: Run safety check
-        run: safety check -r pyproject.toml --full-report || true
-      - name: Run bandit (SAST)
+      - name: Run safety
+        run: pip install --user safety && safety check -r pyproject.toml --full-report || true
+      - name: Run bandit
         run: pip install --user bandit && bandit -r wavesense -f json -o bandit-report.json || true
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: false  # Ativar quando integrar CodeQL
-        with: {sarif_file: bandit-report.json}
-
-  build:
-    name: Build Package
-    runs-on: ubuntu-latest
-    needs: [quality, tests]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "${{ env.PYTHON_VERSION }}"}
-      - name: Install build tools
-        run: pip install --user build
-      - name: Build wheel and sdist
-        run: python -m build
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with: {name: dist, path: dist/, retention-days: 7}

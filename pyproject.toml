@@ -29,3 +29,23 @@ select = ["E", "F", "W", "I", "UP"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = ["-v", "--tb=short"]
+
+[tool.coverage.run]
+source = ["wavesense"]
+omit = [
+    "*/__init__.py",
+    "*/security/oqs_provider.py",
+    "*/quantum/*",
+    "examples/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+]
+show_missing = true
+fail_under = 70
