@@ -1,16 +1,85 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+
 jobs:
-  test:
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ env.PYTHON_VERSION }}"}
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install dependencies
+        run: |
+          source $HOME/.local/bin/env
+          uv pip install --system --break-system-packages -e ".[dev]"
+      - name: Run ruff (lint + format check)
+        run: ruff check wavesense tests
+      - name: Run mypy (type check)
+        run: mypy wavesense tests --ignore-missing-imports
+
+  tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        python: ["3.9", "3.10", "3.11", "3.12"]
+      matrix: {python: ["3.9", "3.10", "3.11", "3.12"]}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "${{ matrix.python }}"}
-      - run: pip install uv
-      - run: pip install -e .[dev]
-      - run: ruff check .
-      - run: pytest -q
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install dependencies
+        run: |
+          source $HOME/.local/bin/env
+          uv pip install --system --break-system-packages -e ".[dev]"
+      - name: Run pytest
+        run: pytest tests/ -v --tb=short --cov=wavesense --cov-report=term-missing
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: matrix.python == '3.11'
+        with: {file: ./coverage.xml, fail_ci_if_error: false}
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ env.PYTHON_VERSION }}"}
+      - name: Install safety
+        run: pip install --user safety
+      - name: Run safety check
+        run: safety check -r pyproject.toml --full-report || true
+      - name: Run bandit (SAST)
+        run: pip install --user bandit && bandit -r wavesense -f json -o bandit-report.json || true
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: false  # Ativar quando integrar CodeQL
+        with: {sarif_file: bandit-report.json}
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: [quality, tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ env.PYTHON_VERSION }}"}
+      - name: Install build tools
+        run: pip install --user build
+      - name: Build wheel and sdist
+        run: python -m build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with: {name: dist, path: dist/, retention-days: 7}
