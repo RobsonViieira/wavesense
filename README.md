@@ -140,3 +140,37 @@ Itatiba, SP — Brasil
 ---
 
 * Em desenvolvimento ativo — contribuições e feedback são bem-vindos.*
+
+## 🧪 Exemplos
+
+### Demo básica
+```bash
+# Executar com configurações padrão (10 segundos, 10 Hz)
+python examples/basic_demo.py
+
+# Personalizar via variáveis de ambiente
+WAVESENSE_DEMO_DURATION=30 WAVESENSE_DEMO_RATE=20 python examples/basic_demo.py
+```
+
+### Usando criptografia pós-quântica
+```bash
+# Instalar dependências PQC
+pip install pyoqs cryptography  # ou uv pip install pyoqs cryptography --system --break-system-packages
+
+# Executar a demo (usará OQSCryptoProvider automaticamente)
+python examples/basic_demo.py
+```
+
+### Integração com seu código
+```python
+from wavesense import init, FallbackProvider
+from wavesense.security.oqs_provider import OQSCryptoProvider
+
+# Inicializar com PQC
+sdk = init(crypto=OQSCryptoProvider())
+
+# Ou com fallback clássico
+sdk = init(crypto=FallbackProvider())
+
+# Usar sdk['crypto'] para operações seguras
+```
