@@ -1,18 +1,31 @@
 [project]
 name = "wavesense"
 version = "0.1.0"
-description = "WiFi CSI behavioral sensing SDK"
+description = "WiFi CSI behavioral sensing SDK — privacy-first, PQC-ready"
+readme = "README.md"
 requires-python = ">=3.9"
+license = {text = "Apache-2.0"}
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
-    "tflite-runtime>=2.15",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff", "mypy"]
-crypto = ["cryptography>=42.0"]
+dev = ["pytest>=7.4", "ruff>=0.3", "mypy>=1.8"]
+crypto = ["pyoqs>=0.2.0", "cryptography>=42.0"]
+quantum = ["grpcio>=1.60", "protobuf>=4.25", "pydantic>=2.6"]
+ml = ["tflite-runtime>=2.14.0; python_version < '3.12'"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 99
 target-version = "py39"
+select = ["E", "F", "W", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = ["-v", "--tb=short"]
